@@ -20,7 +20,7 @@ COPY tools/run-qemu.sh tools/ui-qemu.py /opt/neoqemu/bin/
 
 FROM debian:trixie-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        libglib2.0-0t64 libpixman-1-0 libfdt1 zlib1g python3 \
+        libglib2.0-0t64 libpixman-1-0 libfdt1 zlib1g python3 python3-pil \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=build /opt/neoqemu /opt/neoqemu
 ENV PATH=/opt/neoqemu/bin:$PATH
@@ -28,5 +28,6 @@ ENV PATH=/opt/neoqemu/bin:$PATH
 RUN qemu-system-aarch64 --version \
     && for d in ramfb virtio-tablet-device virtio-keyboard-device virtio-blk-device; do \
          qemu-system-aarch64 -M virt -device help | grep -q "\"$d\"" || { echo "no $d"; exit 1; }; done \
-    && sh -n /opt/neoqemu/bin/run-qemu.sh && python3 -I /opt/neoqemu/bin/ui-qemu.py selftest
+    && test -x /opt/neoqemu/bin/run-qemu.sh && test -x /opt/neoqemu/bin/ui-qemu.py \
+    && sh -n /opt/neoqemu/bin/run-qemu.sh && ui-qemu.py selftest && python3 -c "import PIL"
 WORKDIR /work

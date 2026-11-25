@@ -112,15 +112,17 @@ def save_ppm(ppm, png, image):
 class Qmp:
     """A minimal QMP client: one command at a time, events skipped."""
 
-    def __init__(self, path, deadline):
+    def __init__(self, path, deadline, proc):
         while True:
             try:
                 self.sock = socket.socket(socket.AF_UNIX)
                 self.sock.connect(path)
                 break
-            except OSError:
+            except OSError as e:
+                if proc.poll() is not None:  # QEMU is gone: its reason is in serial.log
+                    raise EOFError(f"QEMU exited ({proc.returncode}) before its QMP socket came up") from e
                 if time.time() > deadline:
-                    raise
+                    raise EOFError(f"no QMP socket after 30 s ({e})") from e
                 time.sleep(0.05)
         self.file = self.sock.makefile("rwb")
         self._recv()  # greeting
@@ -233,7 +235,7 @@ def main():
             save_ppm(ppm, fb, Image)
 
     try:
-        qmp = Qmp(qmp_path, start + 30)
+        qmp = Qmp(qmp_path, start + 30, proc)
         if not steps:
             while proc.poll() is None and time.time() < deadline:
                 serial.check()
